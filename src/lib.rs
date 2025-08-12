@@ -2,17 +2,10 @@ pub mod builder;
 pub mod config;
 pub mod consumer;
 pub mod error;
+pub mod message;
 pub mod producer;
 
-pub trait KafkaMessage {
-    type Key: AsRef<[u8]>;
-    type Value;
-
-    fn key(&self) -> Option<Self::Key>;
-    fn value(&self) -> Option<&Self::Value>;
-    fn ts_ms_utc(&self) -> Option<i64>;
-    fn into_value(self) -> Option<Self::Value>;
-}
+pub use message::{KafkaMessage, Message};
 
 struct KafkaCallbackContext(());
 

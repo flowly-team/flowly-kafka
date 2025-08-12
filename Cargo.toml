@@ -7,7 +7,7 @@ edition = "2024"
 async-stream = "0.3.6"
 bytes = "1.10.1"
 chrono = "0.4.41"
-flowly = { path = "../flowly" }
+flowly = { git = "https://github.com/flowly-team/flowly.git", version = "0.3.0" }
 futures = "0.3.31"
 log = "0.4.27"
 rdkafka = "0.38.0"

@@ -2,16 +2,41 @@ use std::{fmt, num::NonZeroU32};
 
 use serde::Deserialize;
 
-use crate::consumer::AutoOffsetReset;
-
 const DEFAULT_KAFKA_MESSAGE_SIZE: u32 = 30 * (1 << 20);
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
+/// Enum representing different strategies for resetting the consumer offset.
+pub enum AutoOffsetReset {
+    /// No specific reset strategy is defined.
+    None,
+
+    /// Always start from the latest message.
+    Latest,
+
+    /// Always start from the earliest available message.
+    #[default]
+    Earliest,
+}
+
+impl fmt::Display for AutoOffsetReset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AutoOffsetReset::None => write!(f, "none")?,
+            AutoOffsetReset::Latest => write!(f, "latest")?,
+            AutoOffsetReset::Earliest => write!(f, "earliest")?,
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum KafkaLogLevel {
     /// Represents a critical log level.
     Critical,
     /// Represents an error log level.
+    #[default]
     Error,
     /// Represents a warning log level.
     Warning,
@@ -35,7 +60,6 @@ impl fmt::Display for KafkaLogLevel {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub name: String,
     pub brokers: Vec<String>,
     pub group_id: String,
 
@@ -58,13 +82,31 @@ pub struct Config {
     pub auto_commit: Option<bool>,
 
     #[serde(default)]
-    pub auto_offset_reset: Option<AutoOffsetReset>,
+    pub auto_offset_reset: AutoOffsetReset,
 
     #[serde(default = "Config::default_reconnect_try_count")]
     pub reconnect_count: u32,
 
-    #[serde(default = "Config::default_log_level")]
+    #[serde(default)]
     pub log_level: KafkaLogLevel,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            brokers: Default::default(),
+            group_id: Default::default(),
+            topic: Default::default(),
+            partition_eof: Default::default(),
+            session_timeout: Config::default_session_timeout_ms(),
+            message_timeout_ms: Config::default_message_timeout_ms(),
+            max_message_size: Config::default_max_message_size(),
+            auto_commit: Config::default_auto_commit(),
+            auto_offset_reset: Default::default(),
+            reconnect_count: Config::default_reconnect_try_count(),
+            log_level: Default::default(),
+        }
+    }
 }
 
 impl Config {

@@ -1,4 +1,4 @@
-use std::{fmt, marker::PhantomData};
+use std::marker::PhantomData;
 
 use bytes::Bytes;
 use flowly::{Decoder, Service};
@@ -9,54 +9,8 @@ use rdkafka::{
     consumer::{Consumer, stream_consumer::StreamConsumer},
     error::KafkaError,
 };
-use serde::Deserialize;
 
-use crate::{KafkaCallbackContext, builder::KafkaBuilder, config::Config, error::Error};
-
-#[derive(Debug, Clone, Copy, Deserialize)]
-/// Enum representing different strategies for resetting the consumer offset.
-pub enum AutoOffsetReset {
-    /// No specific reset strategy is defined.
-    None,
-
-    /// Always start from the latest message.
-    Latest,
-
-    /// Always start from the earliest available message.
-    Earliest,
-}
-
-impl Default for AutoOffsetReset {
-    fn default() -> Self {
-        Self::Earliest
-    }
-}
-
-impl fmt::Display for AutoOffsetReset {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AutoOffsetReset::None => write!(f, "none")?,
-            AutoOffsetReset::Latest => write!(f, "latest")?,
-            AutoOffsetReset::Earliest => write!(f, "earliest")?,
-        }
-
-        Ok(())
-    }
-}
-
-pub struct Message<M> {
-    pub key: Option<Bytes>,
-    pub ts_ms_utc: Option<i64>,
-    pub payload: Option<M>,
-    pub partition: i32,
-}
-
-impl<M> Message<M> {
-    pub fn timestamp(&self) -> Option<chrono::DateTime<chrono::Utc>> {
-        self.ts_ms_utc
-            .and_then(chrono::DateTime::from_timestamp_millis)
-    }
-}
+use crate::{KafkaCallbackContext, Message, builder::KafkaBuilder, config::Config, error::Error};
 
 pub struct KafkaConsumer<M = Bytes, D: Decoder<M> = flowly::BytesDecoder> {
     builder: KafkaBuilder,
@@ -122,7 +76,7 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
     }
 }
 
-impl<M, D: Decoder<M>, I: for<'a> AsRef<&'a str>> Service<I> for KafkaConsumer<M, D> {
+impl<M, D: Decoder<M>, I: AsRef<str>> Service<I> for KafkaConsumer<M, D> {
     type Out = Result<Message<M>, Error<D::Error>>;
 
     fn handle(&mut self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> {
