@@ -76,10 +76,16 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
     }
 }
 
-impl<M, D: Decoder<M>, I: AsRef<str>> Service<I> for KafkaConsumer<M, D> {
+impl<M, D, I> Service<I> for KafkaConsumer<M, D>
+where
+    D: Decoder<M> + Send,
+    D::Error: Send,
+    I: AsRef<str> + Send,
+    M: Send,
+{
     type Out = Result<Message<M>, Error<D::Error>>;
 
-    fn handle(&mut self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         let mut reconnect_counter = self.reconnect_count + 1;
         let mut error = None;
 

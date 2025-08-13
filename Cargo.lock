@@ -149,7 +149,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "flowly"
 version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#464457da36ed6e87a42f4f01962c461d214aa7fd"
+source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
 dependencies = [
  "bytes",
  "flowly-core",
@@ -162,7 +162,7 @@ dependencies = [
 [[package]]
 name = "flowly-core"
 version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#464457da36ed6e87a42f4f01962c461d214aa7fd"
+source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -174,7 +174,7 @@ dependencies = [
 [[package]]
 name = "flowly-io"
 version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#464457da36ed6e87a42f4f01962c461d214aa7fd"
+source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
 dependencies = [
  "async-stream",
  "bytes",
@@ -204,7 +204,7 @@ dependencies = [
 [[package]]
 name = "flowly-service"
 version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#464457da36ed6e87a42f4f01962c461d214aa7fd"
+source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
 dependencies = [
  "async-stream",
  "flowly-core",
@@ -219,7 +219,7 @@ dependencies = [
 [[package]]
 name = "flowly-spsc"
 version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#464457da36ed6e87a42f4f01962c461d214aa7fd"
+source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
 dependencies = [
  "atomic-waker",
  "futures",

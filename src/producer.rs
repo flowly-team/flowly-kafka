@@ -21,7 +21,11 @@ pub struct KafkaProducer<M, E> {
     _m: PhantomData<M>,
 }
 
-impl<M: KafkaMessage, E: Encoder<M::Value>> KafkaProducer<M, E> {
+impl<M, E> KafkaProducer<M, E>
+where
+    M: KafkaMessage,
+    E: Encoder<M::Value>,
+{
     pub fn new<S: Into<String>>(encoder: E, config: Config, topic: S) -> Self {
         Self {
             encoder,
@@ -87,10 +91,17 @@ impl<M: KafkaMessage, E: Encoder<M::Value>> KafkaProducer<M, E> {
     }
 }
 
-impl<M: KafkaMessage, E: Encoder<M::Value>> Service<M> for KafkaProducer<M, E> {
+impl<M, E> Service<M> for KafkaProducer<M, E>
+where
+    M: KafkaMessage + Send + Sync,
+    M::Key: Send,
+    M::Value: Send,
+    E: Encoder<M::Value> + Send,
+    E::Error: Send,
+{
     type Out = Result<(), Error<E::Error>>;
 
-    fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> {
+    fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             let mut reconnect_counter = 0;
             let mut error = None;
