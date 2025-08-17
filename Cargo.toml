@@ -1,13 +1,24 @@
 [package]
 name = "flowly-kafka"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
+authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/flowly-team/flowly-kafka"
+homepage = "https://github.com/flowly-team/flowly-kafka"
+description = """
+flowly-kafka is a reusable kafka component for flowly.
+"""
+categories = ["asynchronous", "network-programming"]
+keywords = ["pipeline", "async",  "kafka"]
+
 
 [dependencies]
 async-stream = "0.3.6"
 bytes = "1.10.1"
 chrono = "0.4.41"
-flowly = { git = "https://github.com/flowly-team/flowly.git", version = "0.3.0" }
+flowly = "0.4"
 futures = "0.3.31"
 log = "0.4.27"
 rdkafka = "0.38.0"

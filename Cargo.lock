@@ -148,8 +148,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "flowly"
-version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef56d417016fe1ed621dc7d1fd870205951250a143b9a8dab3b111649a0674c8"
 dependencies = [
  "bytes",
  "flowly-core",
@@ -161,8 +162,9 @@ dependencies = [
 
 [[package]]
 name = "flowly-core"
-version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f46b96759855b0f00a26cfd0be0d263a16cfc8e320ba6e93927e0d18c0c93e4"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -173,8 +175,9 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15dace61fd5149926c10639ca0d1fd363f71583246aceaf009e31e2f8caf437c"
 dependencies = [
  "async-stream",
  "bytes",
@@ -188,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-kafka"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "async-stream",
  "bytes",
@@ -203,8 +206,9 @@ dependencies = [
 
 [[package]]
 name = "flowly-service"
-version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72dbd9566658da0bea0da08960ed0a48728ec749c909ada4bb817c8326a0e389"
 dependencies = [
  "async-stream",
  "flowly-core",
@@ -218,8 +222,9 @@ dependencies = [
 
 [[package]]
 name = "flowly-spsc"
-version = "0.3.0"
-source = "git+https://github.com/flowly-team/flowly.git#1ad7a5e3e4b23a62f7220fe2613ac8d578ecb18c"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66b24d8a2ec9f07d2e6292e14986b2e68a2683b03217caf71c684a0b62f86984"
 dependencies = [
  "atomic-waker",
  "futures",
@@ -714,9 +719,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.104"
+version = "2.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17b6f705963418cdb9927482fa304bc562ece2fdd4f616084c50b7023b435a40"
+checksum = "7bc3fcb250e53458e712715cf74285c1f889686520d79294a9ef3bd7aa1fc619"
 dependencies = [
  "proc-macro2",
  "quote",
