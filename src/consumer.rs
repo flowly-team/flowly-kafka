@@ -114,7 +114,7 @@ where
                 }
             }
 
-            yield Err(error.unwrap().into())
+            yield Err(error.unwrap())
 
         }
     }

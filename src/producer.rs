@@ -130,7 +130,7 @@ where
                 }
             }
 
-            Err(error.unwrap().into())
+            Err(error.unwrap())
         }
         .into_stream()
     }
