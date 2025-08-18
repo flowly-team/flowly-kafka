@@ -8,6 +8,7 @@ use crate::{
     config::{Config, KafkaLogLevel},
 };
 
+#[derive(Debug, Clone)]
 pub(crate) struct KafkaBuilder {
     inner: ClientConfig,
 }

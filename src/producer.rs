@@ -12,6 +12,7 @@ use crate::{
     KafkaCallbackContext, KafkaMessage, builder::KafkaBuilder, config::Config, error::Error,
 };
 
+#[derive(Clone)]
 pub struct KafkaProducer<M, E> {
     encoder: E,
     buffer: BytesMut,
@@ -19,6 +20,7 @@ pub struct KafkaProducer<M, E> {
     inner: Option<FutureProducer<KafkaCallbackContext>>,
     topic: String,
     _m: PhantomData<M>,
+    reconnect_count: u32,
 }
 
 impl<M, E> KafkaProducer<M, E>
@@ -29,6 +31,7 @@ where
     pub fn new<S: Into<String>>(encoder: E, config: Config, topic: S) -> Self {
         Self {
             encoder,
+            reconnect_count: config.reconnect_count,
             builder: KafkaBuilder::new(config),
             buffer: BytesMut::new(),
             _m: PhantomData,
@@ -103,7 +106,7 @@ where
 
     fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
-            let mut reconnect_counter = 0;
+            let mut reconnect_counter = self.reconnect_count as i32;
             let mut error = None;
 
             while reconnect_counter > 0 {
