@@ -89,6 +89,9 @@ pub struct Config {
 
     #[serde(default)]
     pub log_level: KafkaLogLevel,
+
+    #[serde(default = "Config::default_reconnect_sleep_ms")]
+    pub(crate) reconnect_sleep_ms: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -103,6 +106,7 @@ pub struct ConfigBuilder {
     auto_commit: Option<bool>,
     auto_offset_reset: AutoOffsetReset,
     reconnect_count: u32,
+    reconnect_sleep_ms: u32,
     log_level: KafkaLogLevel,
 }
 
@@ -126,6 +130,7 @@ impl ConfigBuilder {
             auto_offset_reset: AutoOffsetReset::default(),
             reconnect_count: Config::default_reconnect_try_count(),
             log_level: KafkaLogLevel::default(),
+            reconnect_sleep_ms: Config::default_reconnect_sleep_ms(),
         }
     }
 
@@ -277,7 +282,7 @@ impl ConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `reconnect_count` - The number of times to attempt reconnecting to the Kafka broker.
+    /// * `reconnect_count` - The number of times to attempt reconnecting to the Kafka broker. (default 100)
     ///
     /// # Examples
     ///
@@ -288,6 +293,24 @@ impl ConfigBuilder {
     /// ```
     pub fn reconnect_count(mut self, reconnect_count: u32) -> Self {
         self.reconnect_count = reconnect_count;
+        self
+    }
+
+    /// Sets the time in milliseconds between reconecting to Kafka.
+    ///
+    /// # Arguments
+    ///
+    /// * `reconnect_sleep_ms` - Time in ms between reconnecting tries to the Kafka broker. (default 500ms)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let config = KafkaConfigBuilder::new()
+    ///     .reconnect_sleep_ms(500)
+    ///     .build();
+    /// ```
+    pub fn reconnect_sleep_ms(mut self, reconnect_sleep_ms: u32) -> Self {
+        self.reconnect_sleep_ms = reconnect_sleep_ms;
         self
     }
 
@@ -323,6 +346,7 @@ impl ConfigBuilder {
             auto_offset_reset: self.auto_offset_reset,
             reconnect_count: self.reconnect_count,
             log_level: self.log_level,
+            reconnect_sleep_ms: self.reconnect_sleep_ms,
         }
     }
 }
@@ -339,13 +363,18 @@ impl Default for Config {
             max_message_size: Config::default_max_message_size(),
             auto_commit: Config::default_auto_commit(),
             auto_offset_reset: Default::default(),
-            reconnect_count: Config::default_reconnect_try_count(),
             log_level: Default::default(),
+            reconnect_count: Config::default_reconnect_try_count(),
+            reconnect_sleep_ms: Config::default_reconnect_sleep_ms(),
         }
     }
 }
 
 impl Config {
+    pub fn default_reconnect_sleep_ms() -> u32 {
+        500
+    }
+
     #[inline]
     pub fn default_session_timeout_ms() -> Option<NonZeroU32> {
         None
@@ -368,7 +397,7 @@ impl Config {
 
     #[inline]
     pub fn default_reconnect_try_count() -> u32 {
-        12
+        100
     }
 
     #[inline]

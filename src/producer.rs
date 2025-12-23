@@ -19,8 +19,9 @@ pub struct KafkaProducer<M, E> {
     builder: KafkaBuilder,
     inner: Option<FutureProducer<KafkaCallbackContext>>,
     topic: String,
-    _m: PhantomData<M>,
     reconnect_count: u32,
+    reconnect_sleep_ms: u32,
+    _m: PhantomData<M>,
 }
 
 impl<M, E> KafkaProducer<M, E>
@@ -32,11 +33,12 @@ where
         Self {
             encoder,
             reconnect_count: config.reconnect_count,
+            reconnect_sleep_ms: config.reconnect_sleep_ms,
             builder: KafkaBuilder::new(config),
             buffer: BytesMut::new(),
-            _m: PhantomData,
             inner: None,
             topic: topic.into(),
+            _m: PhantomData,
         }
     }
 
@@ -106,7 +108,12 @@ where
 
     fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
-            let mut reconnect_counter = self.reconnect_count as i32;
+            let mut reconnect_counter = if self.reconnect_count == 0 {
+                u64::MAX
+            } else {
+                self.reconnect_count as u64
+            };
+
             let mut error = None;
 
             while reconnect_counter > 0 {
@@ -116,6 +123,10 @@ where
                         Err(err) => {
                             error.replace(err);
                             reconnect_counter -= 1;
+                            tokio::time::sleep(std::time::Duration::from_millis(
+                                self.reconnect_sleep_ms as _,
+                            ))
+                            .await;
                             continue;
                         }
                     }
@@ -127,6 +138,10 @@ where
                         error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                         reconnect_counter -= 1;
                         self.inner = None;
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            self.reconnect_sleep_ms as _,
+                        ))
+                        .await;
                         continue;
                     }
                     Err(err) => return Err(err),

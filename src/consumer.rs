@@ -16,8 +16,9 @@ pub struct KafkaConsumer<M = Bytes, D: Decoder<M> = flowly::BytesDecoder> {
     builder: KafkaBuilder,
     decoder: D,
     inner: Option<StreamConsumer<KafkaCallbackContext>>,
-    _m: PhantomData<M>,
     reconnect_count: u32,
+    reconnect_sleep_ms: u32,
+    _m: PhantomData<M>,
 }
 
 impl KafkaConsumer {
@@ -31,6 +32,7 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
     pub fn new_with_decoder(decoder: D, config: Config) -> Self {
         Self {
             reconnect_count: config.reconnect_count,
+            reconnect_sleep_ms: config.reconnect_sleep_ms,
             builder: KafkaBuilder::new(config),
             inner: None,
             decoder,
@@ -79,14 +81,19 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
 impl<M, D, I> Service<I> for KafkaConsumer<M, D>
 where
     D: Decoder<M> + Send,
-    D::Error: Send,
+    D::Error: std::error::Error + Send,
     I: AsRef<str> + Send,
     M: Send,
 {
     type Out = Result<Message<M>, Error<D::Error>>;
 
     fn handle(&mut self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
-        let mut reconnect_counter = self.reconnect_count + 1;
+        let mut reconnect_counter = if self.reconnect_count == 0 {
+            u64::MAX
+        } else {
+            self.reconnect_count as u64
+        };
+
         let mut error = None;
 
         async_stream::stream! {
@@ -97,6 +104,7 @@ where
                         Err(err) => {
                             error.replace(err);
                             reconnect_counter -= 1;
+                            tokio::time::sleep(std::time::Duration::from_millis(self.reconnect_sleep_ms as _)).await;
                             continue;
                         },
                     }
@@ -108,14 +116,19 @@ where
                         error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                         reconnect_counter -= 1;
                         self.inner = None;
+                        tokio::time::sleep(std::time::Duration::from_millis(self.reconnect_sleep_ms as _)).await;
                         continue;
                     }
+
                     Err(err) => yield Err(err),
                 }
             }
 
-            yield Err(error.unwrap())
+            if let Some(err) = error {
+                log::error!("kafka error: {err}");
 
+                yield Err(err);
+            }
         }
     }
 }
