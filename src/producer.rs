@@ -104,7 +104,7 @@ where
     E: Encoder<M::Value> + Send,
     E::Error: Send,
 {
-    type Out = Result<(), Error<E::Error>>;
+    type Out = Result<M, Error<E::Error>>;
 
     fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
@@ -133,7 +133,7 @@ where
                 }
 
                 match self.send(&input).await {
-                    Ok(..) => return Ok(()),
+                    Ok(..) => return Ok(input),
                     Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
                         error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                         reconnect_counter -= 1;
