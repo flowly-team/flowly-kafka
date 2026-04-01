@@ -118,9 +118,9 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "flowly"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "153723f098db48708e6e8e4812fb2378f7bd64d87be0ab41900fd629e64c16ad"
+checksum = "77127c3ef3a79b5c0e0838f24150a8aa05daf4e56e1ee3d3f1d1486c6c4482c3"
 dependencies = [
  "bytes",
  "flowly-core",
