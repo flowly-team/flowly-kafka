@@ -9,13 +9,14 @@ use rdkafka::{
     consumer::{Consumer, stream_consumer::StreamConsumer},
     error::KafkaError,
 };
+use tokio::sync::RwLock;
 
 use crate::{KafkaCallbackContext, Message, builder::KafkaBuilder, config::Config, error::Error};
 
 pub struct KafkaConsumer<M = Bytes, D: Decoder<M> = flowly::BytesDecoder> {
     builder: KafkaBuilder,
     decoder: D,
-    inner: Option<StreamConsumer<KafkaCallbackContext>>,
+    inner: RwLock<Option<StreamConsumer<KafkaCallbackContext>>>,
     reconnect_count: u32,
     reconnect_sleep_ms: u32,
     _m: PhantomData<M>,
@@ -34,7 +35,7 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
             reconnect_count: config.reconnect_count,
             reconnect_sleep_ms: config.reconnect_sleep_ms,
             builder: KafkaBuilder::new(config),
-            inner: None,
+            inner: RwLock::new(None),
             decoder,
             _m: PhantomData,
         }
@@ -42,21 +43,25 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
 
     #[inline]
     pub fn is_connected(&self) -> bool {
-        self.inner.is_some()
+        self.inner.try_read().map(|x| x.is_some()).unwrap_or(false)
     }
 
-    pub async fn connect(&mut self, topics: &[&str]) -> Result<(), Error<D::Error>> {
-        self.inner = None;
+    pub async fn connect(&self, topics: &[&str]) -> Result<(), Error<D::Error>> {
+        let mut guard = self.inner.write().await;
+        let _ = guard.take();
 
         let consumer = self.builder.build_consumer()?;
         consumer.subscribe(topics)?;
-        self.inner.replace(consumer);
+        guard.replace(consumer);
 
         Ok(())
     }
 
-    pub async fn recv(&mut self) -> Result<Message<M>, Error<D::Error>> {
-        let consumer = self.inner.as_mut().ok_or(Error::NoConnection)?;
+    pub async fn recv(&self) -> Result<Message<M>, Error<D::Error>> {
+        let guard = self.inner.read().await;
+        let Some(consumer) = guard.as_ref() else {
+            return Err(Error::NoConnection);
+        };
 
         let msg = consumer.recv().await?;
         let payload = if let Some(mut msg) = msg.payload() {
@@ -80,14 +85,14 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
 
 impl<M, D, I> Service<I> for KafkaConsumer<M, D>
 where
-    D: Decoder<M> + Send,
-    D::Error: std::error::Error + Send,
+    D: Decoder<M> + Send + Sync,
+    D::Error: std::error::Error + Send + Sync,
     I: AsRef<str> + Send,
-    M: Send,
+    M: Send + Sync,
 {
     type Out = Result<Message<M>, Error<D::Error>>;
 
-    fn handle(&mut self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         let mut reconnect_counter = if self.reconnect_count == 0 {
             u64::MAX
         } else {
@@ -115,7 +120,7 @@ where
                     Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
                         error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                         reconnect_counter -= 1;
-                        self.inner = None;
+                        self.inner.write().await.take();
                         tokio::time::sleep(std::time::Duration::from_millis(self.reconnect_sleep_ms as _)).await;
                         continue;
                     }

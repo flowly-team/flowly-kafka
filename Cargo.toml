@@ -1,6 +1,6 @@
 [package]
 name = "flowly-kafka"
-version = "0.4.5"
+version = "0.6.0"
 edition = "2024"
 authors = ["Andrey Tkachenko <andrey@aidev.ru>"]
 license = "MIT"
@@ -15,7 +15,7 @@ keywords = ["pipeline", "async",  "kafka"]
 
 
 [dependencies]
-flowly = "0.5"
+flowly = "0.6"
 async-stream = "0.3.6"
 bytes = "1.10"
 chrono = "0.4"
@@ -25,3 +25,4 @@ rdkafka = "0.38"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 tokio = { version = "1", features = ["time"] }
+parking_lot = "0.12.5"

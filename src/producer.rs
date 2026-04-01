@@ -7,21 +7,34 @@ use rdkafka::{
     error::KafkaError,
     producer::{FutureProducer, FutureRecord},
 };
+use tokio::sync::RwLock;
 
 use crate::{
     KafkaCallbackContext, KafkaMessage, builder::KafkaBuilder, config::Config, error::Error,
 };
 
-#[derive(Clone)]
 pub struct KafkaProducer<M, E> {
     encoder: E,
-    buffer: BytesMut,
     builder: KafkaBuilder,
-    inner: Option<FutureProducer<KafkaCallbackContext>>,
+    inner: RwLock<Option<FutureProducer<KafkaCallbackContext>>>,
     topic: String,
     reconnect_count: u32,
     reconnect_sleep_ms: u32,
     _m: PhantomData<M>,
+}
+
+impl<M: Clone, E: Clone> Clone for KafkaProducer<M, E> {
+    fn clone(&self) -> Self {
+        Self {
+            encoder: self.encoder.clone(),
+            builder: self.builder.clone(),
+            inner: RwLock::new(None),
+            topic: self.topic.clone(),
+            reconnect_count: self.reconnect_count,
+            reconnect_sleep_ms: self.reconnect_sleep_ms,
+            _m: self._m,
+        }
+    }
 }
 
 impl<M, E> KafkaProducer<M, E>
@@ -35,8 +48,7 @@ where
             reconnect_count: config.reconnect_count,
             reconnect_sleep_ms: config.reconnect_sleep_ms,
             builder: KafkaBuilder::new(config),
-            buffer: BytesMut::new(),
-            inner: None,
+            inner: RwLock::new(None),
             topic: topic.into(),
             _m: PhantomData,
         }
@@ -44,23 +56,28 @@ where
 
     #[inline]
     pub fn is_connected(&self) -> bool {
-        self.inner.is_some()
+        self.inner
+            .try_read()
+            .map(|x| x.is_some())
+            .unwrap_or_default()
     }
 
-    pub async fn connect(&mut self) -> Result<(), Error<E::Error>> {
-        self.inner = None;
-        self.inner.replace(self.builder.build_producer()?);
+    pub async fn connect(&self) -> Result<(), Error<E::Error>> {
+        self.inner
+            .write()
+            .await
+            .replace(self.builder.build_producer()?);
         Ok(())
     }
 
-    pub async fn send(&mut self, m: &M) -> Result<(), Error<E::Error>> {
-        let producer = self.inner.as_mut().ok_or(Error::NoConnection)?;
+    pub async fn send(&self, m: &M) -> Result<(), Error<E::Error>> {
+        let guard = self.inner.read().await;
+        let producer = guard.as_ref().ok_or(Error::NoConnection)?;
 
-        self.buffer.clear();
-
+        let mut buffer = BytesMut::new();
         if let Some(payload) = m.value() {
             self.encoder
-                .encode(payload, &mut self.buffer)
+                .encode(payload, &mut buffer)
                 .map_err(Error::MessageCodecError)?;
         }
 
@@ -74,7 +91,7 @@ where
         };
 
         let record = if m.value().is_some() {
-            record.payload(self.buffer.as_ref())
+            record.payload(buffer.as_ref())
         } else {
             record
         };
@@ -101,12 +118,12 @@ where
     M: KafkaMessage + Send + Sync,
     M::Key: Send,
     M::Value: Send,
-    E: Encoder<M::Value> + Send,
+    E: Encoder<M::Value> + Send + Sync,
     E::Error: Send,
 {
     type Out = Result<M, Error<E::Error>>;
 
-    fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
+    fn handle(&self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
         async move {
             let mut reconnect_counter = if self.reconnect_count == 0 {
                 u64::MAX
@@ -137,7 +154,7 @@ where
                     Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
                         error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                         reconnect_counter -= 1;
-                        self.inner = None;
+                        self.inner.write().await.take();
                         tokio::time::sleep(std::time::Duration::from_millis(
                             self.reconnect_sleep_ms as _,
                         ))
