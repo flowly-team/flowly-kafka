@@ -5,6 +5,7 @@ use flowly::{Encoder, Service};
 use futures::{FutureExt, Stream};
 use rdkafka::{
     error::KafkaError,
+    message::{Header as RdkHeader, OwnedHeaders},
     producer::{FutureProducer, FutureRecord},
 };
 
@@ -81,6 +82,19 @@ where
 
         let record = if let Some(ts) = m.ts_ms_utc() {
             record.timestamp(ts)
+        } else {
+            record
+        };
+
+        let record = if let Some(headers) = m.headers() {
+            let mut rdk_headers = OwnedHeaders::new();
+            for (k, v) in headers {
+                rdk_headers = rdk_headers.insert(RdkHeader {
+                    key: k.as_ref(),
+                    value: Some(v.as_slice()),
+                });
+            }
+            record.headers(rdk_headers)
         } else {
             record
         };

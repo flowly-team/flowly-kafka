@@ -92,6 +92,9 @@ pub struct Config {
 
     #[serde(default = "Config::default_reconnect_sleep_ms")]
     pub(crate) reconnect_sleep_ms: u32,
+
+    #[serde(default = "Config::default_decode_headers")]
+    pub decode_headers: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +111,7 @@ pub struct ConfigBuilder {
     reconnect_count: u32,
     reconnect_sleep_ms: u32,
     log_level: KafkaLogLevel,
+    decode_headers: bool,
 }
 
 impl Default for ConfigBuilder {
@@ -131,6 +135,7 @@ impl ConfigBuilder {
             reconnect_count: Config::default_reconnect_try_count(),
             log_level: KafkaLogLevel::default(),
             reconnect_sleep_ms: Config::default_reconnect_sleep_ms(),
+            decode_headers: Config::default_decode_headers(),
         }
     }
 
@@ -328,6 +333,20 @@ impl ConfigBuilder {
         self
     }
 
+    /// Flag decode kafka headers
+    ///
+    /// # Arguments
+    ///
+    /// * `decode` - Flag to decode kafka headers.
+    ///
+    /// # Returns
+    ///
+    /// The modified `KafkaConfigBuilder` instance with the decode headers flag update.
+    pub fn decode_headers(mut self, decode: bool) -> Self {
+        self.decode_headers = decode;
+        self
+    }
+
     /// Constructs a new Kafka configuration from the builder.
     ///
     /// # Returns
@@ -347,6 +366,7 @@ impl ConfigBuilder {
             reconnect_count: self.reconnect_count,
             log_level: self.log_level,
             reconnect_sleep_ms: self.reconnect_sleep_ms,
+            decode_headers: self.decode_headers,
         }
     }
 }
@@ -366,6 +386,7 @@ impl Default for Config {
             log_level: Default::default(),
             reconnect_count: Config::default_reconnect_try_count(),
             reconnect_sleep_ms: Config::default_reconnect_sleep_ms(),
+            decode_headers: Config::default_decode_headers(),
         }
     }
 }
@@ -403,6 +424,10 @@ impl Config {
     #[inline]
     pub fn default_log_level() -> KafkaLogLevel {
         KafkaLogLevel::Error
+    }
+
+    pub fn default_decode_headers() -> bool {
+        true
     }
 
     pub fn builder() -> ConfigBuilder {

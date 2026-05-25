@@ -8,6 +8,7 @@ use rdkafka::{
     Message as _,
     consumer::{Consumer, stream_consumer::StreamConsumer},
     error::KafkaError,
+    message::Headers as _,
 };
 
 use crate::{KafkaCallbackContext, Message, builder::KafkaBuilder, config::Config, error::Error};
@@ -18,6 +19,7 @@ pub struct KafkaConsumer<M = Bytes, D: Decoder<M> = flowly::BytesDecoder> {
     inner: Option<StreamConsumer<KafkaCallbackContext>>,
     reconnect_count: u32,
     reconnect_sleep_ms: u32,
+    decode_headers: bool,
     _m: PhantomData<M>,
 }
 
@@ -33,6 +35,7 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
         Self {
             reconnect_count: config.reconnect_count,
             reconnect_sleep_ms: config.reconnect_sleep_ms,
+            decode_headers: config.decode_headers,
             builder: KafkaBuilder::new(config),
             inner: None,
             decoder,
@@ -69,11 +72,25 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
             None
         };
 
+        let headers = if self.decode_headers
+            && let Some(headers) = msg.headers()
+        {
+            Some(
+                headers
+                    .iter()
+                    .filter_map(|hdr| Some((hdr.key.to_string(), hdr.value?.to_vec())))
+                    .collect(),
+            )
+        } else {
+            None
+        };
+
         Ok(Message {
             key: msg.key().map(|x| x.to_vec().into()),
             ts_ms_utc: msg.timestamp().to_millis(),
             payload,
             partition: msg.partition(),
+            headers,
         })
     }
 }
