@@ -117,10 +117,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "flowly"
-version = "0.4.1"
+name = "fastrand"
+version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "153723f098db48708e6e8e4812fb2378f7bd64d87be0ab41900fd629e64c16ad"
+checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
+
+[[package]]
+name = "flowly"
+version = "0.5.0"
 dependencies = [
  "bytes",
  "flowly-core",
@@ -132,9 +136,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-core"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f46b96759855b0f00a26cfd0be0d263a16cfc8e320ba6e93927e0d18c0c93e4"
+version = "0.5.0"
 dependencies = [
  "arrayvec",
  "bitflags",
@@ -145,9 +147,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-io"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15dace61fd5149926c10639ca0d1fd363f71583246aceaf009e31e2f8caf437c"
+version = "0.5.0"
 dependencies = [
  "async-stream",
  "bytes",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "flowly-kafka"
-version = "0.4.7"
+version = "0.5.0"
 dependencies = [
  "async-stream",
  "bytes",
@@ -177,11 +177,10 @@ dependencies = [
 
 [[package]]
 name = "flowly-service"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b36d1c7232ab138d25f5b927f3c39b6b5ee997754f309edd45ccd9348d47f2b"
+version = "0.5.0"
 dependencies = [
  "async-stream",
+ "fastrand",
  "flowly-core",
  "flowly-spsc",
  "futures",
@@ -189,13 +188,12 @@ dependencies = [
  "pin-project-lite",
  "stream-cancel",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
 name = "flowly-spsc"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66b24d8a2ec9f07d2e6292e14986b2e68a2683b03217caf71c684a0b62f86984"
+version = "0.5.0"
 dependencies = [
  "atomic-waker",
  "futures",
@@ -675,6 +673,17 @@ checksum = "ff360e02eab121e0bc37a2d3b4d4dc622e6eda3a8e5253d5435ecf5bd4c68408"
 dependencies = [
  "bytes",
  "pin-project-lite",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32da49809aab5c3bc678af03902d4ccddea2a87d028d86392a4b1560c6906c70"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]

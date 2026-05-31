@@ -54,7 +54,7 @@ where
         Ok(())
     }
 
-    pub async fn send(&mut self, m: &M) -> Result<(), Error<E::Error>> {
+    async fn send_inner(&mut self, m: &M) -> Result<(), Error<E::Error>> {
         let producer = self.inner.as_mut().ok_or(Error::NoConnection)?;
 
         self.buffer.clear();
@@ -108,6 +108,50 @@ where
             Err((err, _msg)) => Err(err.into()),
         }
     }
+
+    pub async fn send(&mut self, m: M) -> Result<M, Error<E::Error>> {
+        let mut reconnect_counter = if self.reconnect_count == 0 {
+            u64::MAX
+        } else {
+            self.reconnect_count as u64
+        };
+
+        let mut error = None;
+
+        while reconnect_counter > 0 {
+            if !self.is_connected() {
+                match self.connect().await {
+                    Ok(..) => (),
+                    Err(err) => {
+                        error.replace(err);
+                        reconnect_counter -= 1;
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            self.reconnect_sleep_ms as _,
+                        ))
+                        .await;
+                        continue;
+                    }
+                }
+            }
+
+            match self.send_inner(&m).await {
+                Ok(..) => return Ok(m),
+                Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
+                    error.replace(Error::KafkaError(KafkaError::Transaction(e)));
+                    reconnect_counter -= 1;
+                    self.inner = None;
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        self.reconnect_sleep_ms as _,
+                    ))
+                    .await;
+                    continue;
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        Err(error.unwrap())
+    }
 }
 
 impl<M, E> Service<M> for KafkaProducer<M, E>
@@ -121,49 +165,6 @@ where
     type Out = Result<M, Error<E::Error>>;
 
     fn handle(&mut self, input: M, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
-        async move {
-            let mut reconnect_counter = if self.reconnect_count == 0 {
-                u64::MAX
-            } else {
-                self.reconnect_count as u64
-            };
-
-            let mut error = None;
-
-            while reconnect_counter > 0 {
-                if !self.is_connected() {
-                    match self.connect().await {
-                        Ok(..) => (),
-                        Err(err) => {
-                            error.replace(err);
-                            reconnect_counter -= 1;
-                            tokio::time::sleep(std::time::Duration::from_millis(
-                                self.reconnect_sleep_ms as _,
-                            ))
-                            .await;
-                            continue;
-                        }
-                    }
-                }
-
-                match self.send(&input).await {
-                    Ok(..) => return Ok(input),
-                    Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
-                        error.replace(Error::KafkaError(KafkaError::Transaction(e)));
-                        reconnect_counter -= 1;
-                        self.inner = None;
-                        tokio::time::sleep(std::time::Duration::from_millis(
-                            self.reconnect_sleep_ms as _,
-                        ))
-                        .await;
-                        continue;
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-
-            Err(error.unwrap())
-        }
-        .into_stream()
+        async move { self.send(input).await }.into_stream()
     }
 }
