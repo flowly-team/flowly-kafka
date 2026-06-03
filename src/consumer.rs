@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use bytes::Bytes;
 use flowly::{Decoder, Service};
 
-use futures::Stream;
+use futures::{FutureExt, Stream};
 use rdkafka::{
     Message as _,
     consumer::{Consumer, stream_consumer::StreamConsumer},
@@ -19,6 +19,7 @@ pub struct KafkaConsumer<M = Bytes, D: Decoder<M> = flowly::BytesDecoder> {
     inner: RwLock<Option<StreamConsumer<KafkaCallbackContext>>>,
     reconnect_count: u32,
     reconnect_sleep_ms: u32,
+    topic: String,
     _m: PhantomData<M>,
 }
 
@@ -29,9 +30,13 @@ impl KafkaConsumer {
     }
 }
 
-impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
+impl<M, D: Decoder<M>> KafkaConsumer<M, D>
+where
+    D::Error: std::error::Error + Send + Sync,
+{
     pub fn new_with_decoder(decoder: D, config: Config) -> Self {
         Self {
+            topic: config.topic.clone(),
             reconnect_count: config.reconnect_count,
             reconnect_sleep_ms: config.reconnect_sleep_ms,
             builder: KafkaBuilder::new(config),
@@ -57,7 +62,7 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
         Ok(())
     }
 
-    pub async fn recv(&self) -> Result<Message<M>, Error<D::Error>> {
+    async fn recv_inner(&self) -> Result<Message<M>, Error<D::Error>> {
         let guard = self.inner.read().await;
         let Some(consumer) = guard.as_ref() else {
             return Err(Error::NoConnection);
@@ -81,6 +86,51 @@ impl<M, D: Decoder<M>> KafkaConsumer<M, D> {
             partition: msg.partition(),
         })
     }
+
+    pub async fn recv(&self) -> Result<Message<M>, Error<D::Error>> {
+        let mut reconnect_counter = if self.reconnect_count == 0 {
+            u64::MAX
+        } else {
+            self.reconnect_count as u64
+        };
+
+        let mut error = None;
+
+        while reconnect_counter > 0 {
+            if !self.is_connected() {
+                match self.connect(&[self.topic.as_str()]).await {
+                    Ok(..) => (),
+                    Err(err) => {
+                        error.replace(err);
+                        reconnect_counter -= 1;
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            self.reconnect_sleep_ms as _,
+                        ))
+                        .await;
+                        continue;
+                    }
+                }
+            }
+
+            match self.recv_inner().await {
+                Ok(msg) => return Ok(msg),
+                Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
+                    error.replace(Error::KafkaError(KafkaError::Transaction(e)));
+                    reconnect_counter -= 1;
+                    self.inner.write().await.take();
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        self.reconnect_sleep_ms as _,
+                    ))
+                    .await;
+                    continue;
+                }
+
+                Err(err) => return Err(err),
+            }
+        }
+
+        Err(Error::TryConnectionLimit(error.map(|err| Box::new(err))))
+    }
 }
 
 impl<M, D, I> Service<I> for KafkaConsumer<M, D>
@@ -92,48 +142,7 @@ where
 {
     type Out = Result<Message<M>, Error<D::Error>>;
 
-    fn handle(&self, input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
-        let mut reconnect_counter = if self.reconnect_count == 0 {
-            u64::MAX
-        } else {
-            self.reconnect_count as u64
-        };
-
-        let mut error = None;
-
-        async_stream::stream! {
-            while reconnect_counter > 0 {
-                if !self.is_connected() {
-                    match self.connect(&[input.as_ref()]).await {
-                        Ok(..) => (),
-                        Err(err) => {
-                            error.replace(err);
-                            reconnect_counter -= 1;
-                            tokio::time::sleep(std::time::Duration::from_millis(self.reconnect_sleep_ms as _)).await;
-                            continue;
-                        },
-                    }
-                }
-
-                match self.recv().await {
-                    Ok(msg) => yield Ok(msg),
-                    Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
-                        error.replace(Error::KafkaError(KafkaError::Transaction(e)));
-                        reconnect_counter -= 1;
-                        self.inner.write().await.take();
-                        tokio::time::sleep(std::time::Duration::from_millis(self.reconnect_sleep_ms as _)).await;
-                        continue;
-                    }
-
-                    Err(err) => yield Err(err),
-                }
-            }
-
-            if let Some(err) = error {
-                log::error!("kafka error: {err}");
-
-                yield Err(err);
-            }
-        }
+    fn handle(&self, _input: I, _cx: &flowly::Context) -> impl Stream<Item = Self::Out> + Send {
+        async move { self.recv().await }.into_stream()
     }
 }

@@ -64,7 +64,7 @@ pub struct Config {
     pub group_id: String,
 
     #[serde(default)]
-    pub topic: Option<String>,
+    pub topic: String,
 
     #[serde(default)]
     pub partition_eof: Option<bool>,
@@ -337,7 +337,7 @@ impl ConfigBuilder {
         Config {
             brokers: self.brokers,
             group_id: self.group_id.unwrap_or_default(),
-            topic: self.topic,
+            topic: self.topic.expect("topic should be provided"),
             partition_eof: self.partition_eof,
             session_timeout: self.session_timeout,
             message_timeout_ms: self.message_timeout_ms,

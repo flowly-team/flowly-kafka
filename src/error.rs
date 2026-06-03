@@ -11,4 +11,7 @@ pub enum Error<E> {
 
     #[error("Message encode/decode error: {0}")]
     MessageCodecError(E),
+
+    #[error("Kafka try connection limit: {0:?}")]
+    TryConnectionLimit(Option<Box<Error<E>>>),
 }
