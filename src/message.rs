@@ -18,7 +18,7 @@ pub struct Message<M> {
     pub ts_ms_utc: Option<i64>,
     pub payload: Option<M>,
     pub partition: i32,
-    pub headers: Vec<(String, Vec<u8>)>,
+    pub headers: Option<Vec<(String, Vec<u8>)>>,
 }
 
 impl<M> Message<M> {
@@ -53,10 +53,12 @@ impl<M> KafkaMessage for Message<M> {
 
     #[inline]
     fn headers(&self) -> Option<&Vec<(String, Vec<u8>)>> {
-        if self.headers.is_empty() {
+        let headers = self.headers.as_ref()?;
+
+        if headers.is_empty() {
             None
         } else {
-            Some(&self.headers)
+            Some(headers)
         }
     }
 }

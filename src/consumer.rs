@@ -8,6 +8,7 @@ use rdkafka::{
     Message as _,
     consumer::{Consumer, stream_consumer::StreamConsumer},
     error::KafkaError,
+    message::Headers,
 };
 use tokio::sync::RwLock;
 
@@ -89,7 +90,11 @@ where
             ts_ms_utc: msg.timestamp().to_millis(),
             payload,
             partition: msg.partition(),
-            headers: Vec::new(),
+            headers: msg.headers().map(|x| {
+                x.iter()
+                    .filter_map(|x| Some((x.key.to_string(), x.value?.to_vec())))
+                    .collect()
+            }),
         })
     }
 
@@ -140,7 +145,7 @@ where
             }
         }
 
-        Err(Error::TryConnectionLimit(error.map(|err| Box::new(err))))
+        Err(Error::TryConnectionLimit(error.map(Box::new)))
     }
 }
 
