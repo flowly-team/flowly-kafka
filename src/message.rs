@@ -9,6 +9,7 @@ pub trait KafkaMessage {
     fn value(&self) -> Option<&Self::Value>;
     fn ts_ms_utc(&self) -> Option<i64>;
     fn into_value(self) -> Option<Self::Value>;
+    fn headers(&self) -> Option<&Vec<(String, Vec<u8>)>>;
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -17,6 +18,7 @@ pub struct Message<M> {
     pub ts_ms_utc: Option<i64>,
     pub payload: Option<M>,
     pub partition: i32,
+    pub headers: Vec<(String, Vec<u8>)>,
 }
 
 impl<M> Message<M> {
@@ -47,5 +49,14 @@ impl<M> KafkaMessage for Message<M> {
     #[inline]
     fn into_value(self) -> Option<Self::Value> {
         self.payload
+    }
+
+    #[inline]
+    fn headers(&self) -> Option<&Vec<(String, Vec<u8>)>> {
+        if self.headers.is_empty() {
+            None
+        } else {
+            Some(&self.headers)
+        }
     }
 }

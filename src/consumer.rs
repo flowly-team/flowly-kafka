@@ -52,6 +52,11 @@ where
     }
 
     pub async fn connect(&self, topics: &[&str]) -> Result<(), Error<D::Error>> {
+        log::info!(
+            "trying to connect to kafka [{}]",
+            topics.iter().next().unwrap()
+        );
+
         let mut guard = self.inner.write().await;
         let _ = guard.take();
 
@@ -84,6 +89,7 @@ where
             ts_ms_utc: msg.timestamp().to_millis(),
             payload,
             partition: msg.partition(),
+            headers: Vec::new(),
         })
     }
 
@@ -101,6 +107,7 @@ where
                 match self.connect(&[self.topic.as_str()]).await {
                     Ok(..) => (),
                     Err(err) => {
+                        log::warn!("kafka connection error: {err}");
                         error.replace(err);
                         reconnect_counter -= 1;
                         tokio::time::sleep(std::time::Duration::from_millis(
@@ -113,8 +120,12 @@ where
             }
 
             match self.recv_inner().await {
-                Ok(msg) => return Ok(msg),
+                Ok(msg) => {
+                    return Ok(msg);
+                }
                 Err(Error::KafkaError(KafkaError::Transaction(e))) if e.is_fatal() => {
+                    log::warn!("kafka connection error: {e}");
+
                     error.replace(Error::KafkaError(KafkaError::Transaction(e)));
                     reconnect_counter -= 1;
                     self.inner.write().await.take();

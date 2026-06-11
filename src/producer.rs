@@ -102,6 +102,19 @@ where
             record
         };
 
+        let record = if let Some(headers) = m.headers() {
+            let mut owned = rdkafka::message::OwnedHeaders::new_with_capacity(headers.len());
+            for (key, value) in headers {
+                owned = owned.insert(rdkafka::message::Header {
+                    key: key.as_str(),
+                    value: Some(value.as_slice()),
+                });
+            }
+            record.headers(owned)
+        } else {
+            record
+        };
+
         let res = producer
             .send(record, std::time::Duration::from_secs(0))
             .await;
